@@ -12,6 +12,8 @@ foreach(test ${TEST_SUBDIRS})
         PATCH_COMMAND ""
         INSTALL_COMMAND ""
 
+        BUILD_ALWAYS TRUE
+
         CMAKE_ARGS
             -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_LIST_DIR}/../cmake/riscv_toolchain.cmake
             -DRISCV_TOOLCHAIN=${RISCV_TOOLCHAIN}

@@ -409,6 +409,15 @@ module axi4_memory #(
 				$fflush();
 			end
 		end else
+		if (latched_waddr == 32'h1000_0004) begin
+            if (latched_wdata == 0) begin
+                $display("[Success] Simulation finished successfully");
+                $finish;
+            end else begin
+                $display("[ERROR] Simulation finished with exit code %d", latched_wdata);
+                $fatal;
+            end
+		end else
 		if (latched_waddr == 32'h2000_0000) begin
 			if (latched_wdata == 123456789)
 				tests_passed = 1;

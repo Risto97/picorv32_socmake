@@ -12,15 +12,29 @@ MEMORY {
 	 * set LENGTH=96k and leave at least 32k for stack */
 	mem : ORIGIN = 0x00000000, LENGTH = 0x00018000
 }
+PROVIDE(_smem = ORIGIN(mem));
+PROVIDE(_estack = ORIGIN(mem) + LENGTH(mem));
 
 SECTIONS {
+
 	.memory : {
-		. = 0x000000;
-		start*(.text);
-		*(.text);
+        *.crt0.S*(.text)
+        *.crt0.s*(.text)
+        *.S*(.text)
+        *.s*(.text)
+        *(.text)
+        *(.text.*)
+        _sdata = .; 
+        *(.data*)
+        _edata = .;
+        *(.text*);
+        ._sbss = .;
+        *(.bss*);
+        ._ebss = .;
 		*(*);
 		end = .;
 		. = ALIGN(4);
-	} > mem
+	} > mem 
+
 }
 
