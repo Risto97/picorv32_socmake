@@ -28,8 +28,8 @@ module testbench #(
 			$dumpvars(0, testbench);
 		end
 		repeat (1000000) @(posedge clk);
-		$display("TIMEOUT");
-		$finish;
+		// $display("TIMEOUT");
+		// $finish;
 	end
 
 	wire trace_valid;
@@ -167,6 +167,7 @@ module picorv32_wrapper #(
 		.COMPRESSED_ISA(1),
 `endif
 		.ENABLE_MUL(1),
+		.ENABLE_FAST_MUL(1),
 		.ENABLE_DIV(1),
 		.ENABLE_IRQ(1),
 		.ENABLE_TRACE(1)
@@ -259,11 +260,11 @@ module picorv32_wrapper #(
 			$display("TRAP after %1d clock cycles", cycle_counter);
 			if (tests_passed) begin
 				$display("ALL TESTS PASSED.");
-				$finish;
+				$finish(1);
 			end else begin
 				$display("ERROR!");
 				if ($test$plusargs("noerror"))
-					$finish;
+					$finish(1);
 				$stop;
 			end
 		end
@@ -303,6 +304,11 @@ module axi4_memory #(
 );
 	reg [31:0]   memory [0:128*1024/4-1] /* verilator public */;
 	reg verbose;
+
+    reg rst_clk_cnt;
+    reg stop_clk_cnt;
+    reg [31:0] clk_count = 0;
+
 	initial verbose = $test$plusargs("verbose") || VERBOSE;
 
 	reg axi_test;
@@ -383,9 +389,13 @@ module axi4_memory #(
 			mem_axi_rdata <= memory[latched_raddr >> 2];
 			mem_axi_rvalid <= 1;
 			latched_raddr_en = 0;
-		end else begin
+		end else if (latched_raddr == 32'h1000_0008) begin
+            mem_axi_rdata <= clk_count;
+			mem_axi_rvalid <= 1;
+			latched_raddr_en = 0;
+        end else begin
 			$display("OUT-OF-BOUNDS MEMORY READ FROM %08x", latched_raddr);
-			$finish;
+            $fatal;
 		end
 	end endtask
 
@@ -412,25 +422,44 @@ module axi4_memory #(
 		if (latched_waddr == 32'h1000_0004) begin
             if (latched_wdata == 0) begin
                 $display("[Success] Simulation finished successfully");
-                $finish;
+                $finish(1);
             end else begin
                 $display("[ERROR] Simulation finished with exit code %d", latched_wdata);
                 $fatal;
             end
 		end else
+		if (latched_waddr == 32'h1000_0008) begin
+            if (latched_wdata == 0) begin
+                rst_clk_cnt <= 1'b1;
+                stop_clk_cnt <= 1'b0;
+            end else if (latched_wdata == 1) begin
+                stop_clk_cnt <= 1'b1;
+            end
+        end else
 		if (latched_waddr == 32'h2000_0000) begin
 			if (latched_wdata == 123456789)
 				tests_passed = 1;
 		end else begin
 			$display("OUT-OF-BOUNDS MEMORY WRITE TO %08x", latched_waddr);
-			$finish;
+			$fatal;
 		end
 		mem_axi_bvalid <= 1;
 		latched_waddr_en = 0;
 		latched_wdata_en = 0;
 	end endtask
 
+    always @(posedge clk) begin
+        if(rst_clk_cnt) begin
+            clk_count <= 0;
+        end else if (!stop_clk_cnt) begin
+            clk_count <= clk_count + 1;
+        end
+
+    end
+
 	always @(negedge clk) begin
+        rst_clk_cnt <= 1'b0;
+        stop_clk_cnt <= stop_clk_cnt;
 		if (mem_axi_arvalid && !(latched_raddr_en || fast_raddr) && async_axi_transaction[0]) handle_axi_arvalid;
 		if (mem_axi_awvalid && !(latched_waddr_en || fast_waddr) && async_axi_transaction[1]) handle_axi_awvalid;
 		if (mem_axi_wvalid  && !(latched_wdata_en || fast_wdata) && async_axi_transaction[2]) handle_axi_wvalid;
