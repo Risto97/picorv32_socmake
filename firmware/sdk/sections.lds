@@ -23,3 +23,4 @@ SECTIONS {
 		. = ALIGN(4);
 	} > mem
 }
+

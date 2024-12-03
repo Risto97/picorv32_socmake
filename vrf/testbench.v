@@ -7,7 +7,6 @@
 
 `timescale 1 ns / 1 ps
 
-`ifndef VERILATOR
 module testbench #(
 	parameter AXI_TEST = 0,
 	parameter VERBOSE = 0
@@ -62,7 +61,6 @@ module testbench #(
 		.trace_data(trace_data)
 	);
 endmodule
-`endif
 
 module picorv32_wrapper #(
 	parameter AXI_TEST = 0,
@@ -249,7 +247,7 @@ module picorv32_wrapper #(
 	reg [1023:0] firmware_file;
 	initial begin
 		if (!$value$plusargs("firmware=%s", firmware_file))
-			firmware_file = "firmware/firmware.hex";
+			firmware_file = "/tools/work/picorv32_socmake/firmware/test/build/test.hex";
 		$readmemh(firmware_file, mem.memory);
 	end
 
@@ -257,9 +255,7 @@ module picorv32_wrapper #(
 	always @(posedge clk) begin
 		cycle_counter <= resetn ? cycle_counter + 1 : 0;
 		if (resetn && trap) begin
-`ifndef VERILATOR
 			repeat (10) @(posedge clk);
-`endif
 			$display("TRAP after %1d clock cycles", cycle_counter);
 			if (tests_passed) begin
 				$display("ALL TESTS PASSED.");
@@ -410,9 +406,7 @@ module axi4_memory #(
 					$display("OUT: %3d", latched_wdata);
 			end else begin
 				$write("%c", latched_wdata[7:0]);
-`ifndef VERILATOR
 				$fflush();
-`endif
 			end
 		end else
 		if (latched_waddr == 32'h2000_0000) begin
