@@ -15,7 +15,7 @@ module testbench #(
 	reg resetn = 0;
 	wire trap;
 
-	always #5 clk = ~clk;
+	always #20 clk = ~clk;
 
 	initial begin
 		repeat (100) @(posedge clk);
@@ -170,6 +170,7 @@ module picorv32_wrapper #(
 		.ENABLE_FAST_MUL(1),
 		.ENABLE_DIV(1),
 		.ENABLE_IRQ(1),
+		.ENABLE_COUNTERS(1),
 		.ENABLE_TRACE(1)
 `endif
 	) uut (
@@ -305,10 +306,6 @@ module axi4_memory #(
 	reg [31:0]   memory [0:128*1024/4-1] /* verilator public */;
 	reg verbose;
 
-    reg rst_clk_cnt;
-    reg stop_clk_cnt;
-    reg [31:0] clk_count = 0;
-
 	initial verbose = $test$plusargs("verbose") || VERBOSE;
 
 	reg axi_test;
@@ -389,10 +386,6 @@ module axi4_memory #(
 			mem_axi_rdata <= memory[latched_raddr >> 2];
 			mem_axi_rvalid <= 1;
 			latched_raddr_en = 0;
-		end else if (latched_raddr == 32'h1000_0008) begin
-            mem_axi_rdata <= clk_count;
-			mem_axi_rvalid <= 1;
-			latched_raddr_en = 0;
         end else begin
 			$display("OUT-OF-BOUNDS MEMORY READ FROM %08x", latched_raddr);
             $fatal;
@@ -428,14 +421,6 @@ module axi4_memory #(
                 $fatal;
             end
 		end else
-		if (latched_waddr == 32'h1000_0008) begin
-            if (latched_wdata == 0) begin
-                rst_clk_cnt <= 1'b1;
-                stop_clk_cnt <= 1'b0;
-            end else if (latched_wdata == 1) begin
-                stop_clk_cnt <= 1'b1;
-            end
-        end else
 		if (latched_waddr == 32'h2000_0000) begin
 			if (latched_wdata == 123456789)
 				tests_passed = 1;
@@ -448,18 +433,7 @@ module axi4_memory #(
 		latched_wdata_en = 0;
 	end endtask
 
-    always @(posedge clk) begin
-        if(rst_clk_cnt) begin
-            clk_count <= 0;
-        end else if (!stop_clk_cnt) begin
-            clk_count <= clk_count + 1;
-        end
-
-    end
-
 	always @(negedge clk) begin
-        rst_clk_cnt <= 1'b0;
-        stop_clk_cnt <= stop_clk_cnt;
 		if (mem_axi_arvalid && !(latched_raddr_en || fast_raddr) && async_axi_transaction[0]) handle_axi_arvalid;
 		if (mem_axi_awvalid && !(latched_waddr_en || fast_waddr) && async_axi_transaction[1]) handle_axi_awvalid;
 		if (mem_axi_wvalid  && !(latched_wdata_en || fast_wdata) && async_axi_transaction[2]) handle_axi_wvalid;

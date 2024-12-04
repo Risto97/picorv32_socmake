@@ -29,7 +29,7 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC
     MAIN_HAS_NOARGC=1
     PERFORMANCE_RUN=1
     ITERATIONS=10
-    CLOCKS_PER_SEC=100000000
+    CLOCKS_PER_SEC=25000000
     )
 
 add_subdirectory("../../sdk/" sdk)

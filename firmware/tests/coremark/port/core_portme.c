@@ -18,6 +18,9 @@ Original Author: Shay Gal-on
 #include "coremark.h"
 #include "core_portme.h"
 
+#include "perf_counter.h"
+#include <stdint.h>
+
 #define __CLK_COUNT_ADDR ((volatile uint32_t*)0x10000008)
 
 #if VALIDATION_RUN
@@ -46,8 +49,7 @@ volatile ee_s32 seed5_volatile = 0;
 CORETIMETYPE
 barebones_clock()
 {
-    ee_s32 result;
-    result = *(__CLK_COUNT_ADDR);
+    ee_s32 result = read_cycles();
     return result;
     // TODO finish this
 }
@@ -79,7 +81,6 @@ static CORETIMETYPE start_time_val, stop_time_val;
 void
 start_time(void)
 {
-    *(__CLK_COUNT_ADDR) = 0x0;
     GETMYTIME(&start_time_val);
 }
 /* Function : stop_time
@@ -94,7 +95,6 @@ void
 stop_time(void)
 {
     GETMYTIME(&stop_time_val);
-    *(__CLK_COUNT_ADDR) = 0x1;
 }
 /* Function : get_time
         Return an abstract "ticks" number that signifies time on the system.
@@ -158,12 +158,17 @@ portable_init(core_portable *p, int *argc, char *argv[])
 void
 portable_fini(core_portable *p)
 {
-    CORE_TICKS elapsed = get_time();
-    float coremark_mhz;
+    uint32_t scale_factor = 1000;
+    CORE_TICKS elapsed = get_time() / scale_factor;
+    uint32_t coremark_mhz_scaled;
+    uint32_t clock_freq = (CLOCKS_PER_SEC) / 1e6;
 
-    coremark_mhz = (100000000.0f * (float)ITERATIONS) / elapsed;
+    coremark_mhz_scaled = ((CLOCKS_PER_SEC) / elapsed) * (ITERATIONS) / clock_freq;
 
-    ee_printf("CoreMark / MHz: %d\n", elapsed);
+    if(coremark_mhz_scaled < scale_factor)
+        ee_printf("CoreMark / MHz: 0.%d\n", coremark_mhz_scaled);
+    else
+        ee_printf("CoreMark / MHz: %d\n", coremark_mhz_scaled);
 
     p->portable_id = 0;
 }
